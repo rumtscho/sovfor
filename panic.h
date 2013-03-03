@@ -12,9 +12,6 @@ typedef enum {
 	PANIC_USER_ERROR = 4
 } PanicCode;
 
-// delay
-void pause(unsigned multiplier);
-
 // freezes MCU and blinks red LED x times corresponding to error code listed above
 void panic(PanicCode code);
 

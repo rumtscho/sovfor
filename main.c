@@ -1,35 +1,28 @@
 /* Blink LED example */
 
-#include <msp430g2553.h>
+#include "serialcon.h"
+#include "panic.h"
 
 volatile int mode;
 
-/** Delay function. **/
-void delay(unsigned int d) {
-	int i;
-	for (i = 0; i<d; i++) {
-		nop();
-	}
-}
+const int dot_delay = 100;
 
 void dot(int bitnr) {
 	P1OUT |= bitnr;
-	delay(0x8fff);
+	delay_ms(dot_delay);
 	P1OUT &= ~bitnr;
-	delay(0x8fff);
+	delay_ms(dot_delay);
 }
 
 void dash(int bitnr) {
 	P1OUT |= bitnr;
-	delay(0xffff);
-	delay(0xffff);
+	delay_ms(2*dot_delay);
 	P1OUT &= ~bitnr;
-	delay(0x8fff);
+	delay_ms(dot_delay);
 }
 
 void empty() {
-	delay(0xffff);
-	delay(0xffff);
+	delay_ms(3*dot_delay);
 }
 
 void morseRumi() {
@@ -69,6 +62,40 @@ void morseAxel() {
 	empty();
 }
 
+static void check_for_input();
+
+void check_for_input()
+{
+	char line[SERIAL_BUFFER_SIZE];
+	unsigned len;
+	memset(line, 'Z', SERIAL_BUFFER_SIZE);  // XXX debugging
+
+	if (serialcon_has_input) {
+		len = serialcon_readln(line, SERIAL_BUFFER_SIZE);
+		if (len > 0) {  // == 0 would be when it rcvd unprintable control characters
+			if (strncmp(line, "help", 4) == 0) {
+				serialcon_writeln("Valid commands: help, panic, hello, green");
+			} else if (strncmp(line, "panic", 5) == 0) {
+				panic(PANIC_USER_ERROR);
+			} else if (strncmp(line, "hello", 5) == 0) {
+				serialcon_writeln("Hey, what's up?");
+			} else if (strncmp(line, "green", 5) == 0) {
+				P1OUT |= LED_GRN;
+				delay_ms(25);
+				P1OUT &= ~LED_GRN;
+			} else if (strcmp(line, "axel")==0){
+				morseAxel();
+			} else if (strcmp(line, "rumi")==0){
+				morseRumi();
+			} else {
+				serialcon_writeln("Huh?  Try 'help'");
+			}
+
+			serialcon_writeln("Enter next command:");
+		}
+	}
+}
+
 
 int main(void) {
 	WDTCTL = WDTPW | WDTHOLD;
@@ -96,11 +123,30 @@ int main(void) {
 
 	_EINT();
 
-	for (;;) {
-		if(mode==1)
-			morseRumi();
-		else
-			morseAxel();
+	/* USCI setup */
+	P1SEL = BIT1 + BIT2;			// Set pin modes to USCI_A0
+	P1SEL2 = BIT1 + BIT2;			// Set pin modes to USCI_A0
+	P1DIR |= BIT2;					// Set 1.2 to output
+	UCA0CTL1 |= UCSSEL_2;			// USCI_A use SMCLK
+#if 0 // 1 MHz
+	UCA0BR0 = 104;					// 1 MHz -> 9600
+	UCA0BR1 = 0;					// 1 MHz -> 9600
+	UCA0MCTL = UCBRS1;				// Modulation UCBRSx = 5
+#else // 8 MHz
+	UCA0BR0 = 0x41;	                // 8 MHz -> 9600
+	UCA0BR1 = 0x03;                 // 8 MHz -> 9600
+	UCA0MCTL = UCBRS0;				// Modulation UCBRSx = 1
+#endif
+	UCA0CTL1 &= ~UCSWRST;			// **Initialize USCI state machine**
+	IE2 |= UCA0RXIE;				// Enable USCI_A0 RX interrupt
+	serialcon_setup();
+
+	serialcon_writeln("Enter a command:");
+
+	/* Main loop */
+	while (true) {
+		delay_ms(1);
+		check_for_input();
 	}
 }
 

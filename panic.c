@@ -1,12 +1,5 @@
 #include "panic.h"
 
-void pause(unsigned multiplier)
-{
-	unsigned cnt;
-	for (cnt = 0; cnt < multiplier; cnt++)
-		__delay_cycles(65535);
-}
-
 void panic(PanicCode code)
 {
 	int blinkcnt;
@@ -16,10 +9,10 @@ void panic(PanicCode code)
 	while (true) {
 		for (blinkcnt = 0; blinkcnt < code; blinkcnt++) {
 			P1OUT |= LED_RED;
-			pause(5);
+			delay_ms(200);
 			P1OUT &= ~LED_RED;
-			pause(5);
+			delay_ms(200);
 		}
-		pause(10);
+		delay_ms(400);
 	}
 }

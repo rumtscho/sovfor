@@ -1,7 +1,7 @@
 CC=msp430-gcc
 CFLAGS=-Os -Wall -g -mmcu=msp430g2553
 
-OBJS=main.o
+OBJS=main.o panic.o interrupts.o serialcon.o ringbuf.o
 TARGET=main.elf
 
 all: $(TARGET)
@@ -14,6 +14,9 @@ $(TARGET): $(OBJS)
 
 run: $(TARGET)
 	mspdebug rf2500 "prog $(TARGET)" "run"
+    
+prog: $(TARGET)
+	mspdebug rf2500 "prog $(TARGET)" "exit"
     
 clean:
 	rm -fr $(TARGET) $(OBJS)
