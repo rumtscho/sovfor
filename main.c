@@ -1,6 +1,8 @@
 /* Blink LED example */
 
+#include <stdio.h>
 #include "serialcon.h"
+#include "onewire.h"
 #include "panic.h"
 
 volatile int mode;
@@ -62,6 +64,49 @@ void morseAxel() {
 	empty();
 }
 
+int getTempInHalfDegrees() {
+	onewire_t ow;
+	int i, ret;
+	uint8_t scratchpad[9];
+
+	ow.port_out = &P2OUT;
+	ow.port_in = &P2IN;
+	ow.port_ren = &P2REN;
+	ow.port_dir = &P2DIR;
+	ow.pin = BIT3;
+
+	ret = onewire_reset(&ow);
+	if( ret != 0 )
+		printf("error reset 1: %d\n", ret);
+	onewire_write_byte(&ow, 0xcc); // skip ROM command
+	onewire_write_byte(&ow, 0x44); // convert T command
+	onewire_line_high(&ow);
+	delay_ms(800); // at least 750 ms for the default 12-bit resolution
+	ret = onewire_reset(&ow);
+	if( ret != 0 )
+		printf("error reset 2: %d\n", ret);
+	onewire_write_byte(&ow, 0xcc); // skip ROM command
+	onewire_write_byte(&ow, 0xbe); // read scratchpad command
+	for (i = 0; i < 9; i++)
+		scratchpad[i] = onewire_read_byte(&ow);
+
+    printf("scratchpad: ");
+    for (i = 0; i < 9; i++)
+    	printf("%02x ", scratchpad[i]);
+    printf("\n");
+
+    return scratchpad[0];
+
+
+}
+
+
+
+void reportTemp(){
+	int doubledTemperature = getTempInHalfDegrees();
+	printf("temperature: %d.%d\n", doubledTemperature/2, (doubledTemperature&1)*5 );
+}
+
 static void check_for_input();
 
 void check_for_input()
@@ -87,6 +132,8 @@ void check_for_input()
 				morseAxel();
 			} else if (strcmp(line, "rumi")==0){
 				morseRumi();
+			} else if (strcmp(line, "t")==0) {
+				reportTemp();
 			} else {
 				serialcon_writeln("Huh?  Try 'help'");
 			}

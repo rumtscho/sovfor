@@ -1,6 +1,14 @@
 #include "serialcon.h"
 #include "panic.h"
 
+int putchar(int c)
+{
+	if (c == '\n') putchar('\r');
+	while (!(IFG2&UCA0TXIFG));
+	UCA0TXBUF = c;
+	return 0;
+}
+
 // flushes any data in the buffer to the console
 static void serialcon_flush();
 
