@@ -1,7 +1,7 @@
 CC=msp430-gcc
 CFLAGS=-Os -Wall -g -mmcu=msp430g2553
 
-OBJS=main.o panic.o interrupts.o serialcon.o ringbuf.o
+OBJS=main.o panic.o interrupts.o serialcon.o ringbuf.o onewire.o delay.o
 TARGET=main.elf
 
 all: $(TARGET)
