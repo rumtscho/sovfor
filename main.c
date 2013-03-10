@@ -5,7 +5,6 @@
 #include "onewire.h"
 #include "panic.h"
 
-volatile int mode;
 
 const int dot_delay = 100;
 
@@ -96,8 +95,6 @@ int getTempInHalfDegrees() {
     printf("\n");
 
     return scratchpad[0];
-
-
 }
 
 
@@ -143,33 +140,8 @@ void check_for_input()
 	}
 }
 
-
-int main(void) {
-	WDTCTL = WDTPW | WDTHOLD;
-	BCSCTL1 = CALBC1_8MHZ;
-	DCOCTL = CALDCO_8MHZ;
-
-	/* The basic clock system control register 3 controls the oscillator
-	 * the auxilliary clock uses.  Change ACLK from external timer crystal
-	 * oscillator to internal very low-power oscillator (VLO) clock,
-	 * which runs at appoximately 12kHz.
-	 */
-	BCSCTL3 |= LFXT1S_2;
-
-	P1DIR |= BIT0 + BIT6;
-	P1DIR &= ~BIT3;
-	P1REN |= BIT3;
-	P1OUT |= BIT3;
-	P1OUT &= ~BIT6;
-
-	P1IE |= BIT3;
-	P1IES |= BIT3;
-	P1IFG &= ~BIT3;
-
-	mode = 0;
-
-	_EINT();
-
+void setupComm()
+{
 	/* USCI setup */
 	P1SEL = BIT1 + BIT2;			// Set pin modes to USCI_A0
 	P1SEL2 = BIT1 + BIT2;			// Set pin modes to USCI_A0
@@ -187,23 +159,52 @@ int main(void) {
 	UCA0CTL1 &= ~UCSWRST;			// **Initialize USCI state machine**
 	IE2 |= UCA0RXIE;				// Enable USCI_A0 RX interrupt
 	serialcon_setup();
+}
+
+int main(void) {
+
+	//disable watchdog and setup clock speeds
+	WDTCTL = WDTPW | WDTHOLD;
+	BCSCTL1 = CALBC1_8MHZ;
+	DCOCTL = CALDCO_8MHZ;
+
+	/* The basic clock system control register 3 controls the oscillator
+	 * the auxilliary clock uses.  Change ACLK from external timer crystal
+	 * oscillator to internal very low-power oscillator (VLO) clock,
+	 * which runs at appoximately 12kHz.
+	 */
+	BCSCTL3 |= LFXT1S_2;
+
+	//
+	P1DIR |= LED_GRN + LED_RED;// set red and green LEDs as output
+	P1DIR &= ~BIT3; //set taster (at 1.3) as input
+	P1IE |= BIT3; //Interrupt for 1.3
+	P1IES |= BIT3; //?
+	P1IFG &= ~BIT3; //set interrupt flag to zero
+	P1REN |= BIT3; //pullup/pulldown resistor enable
+	P1OUT |= BIT3; //decide if resistor is pullup or pulldown
+	P1OUT &= ~LED_GRN; //turn off LED
+
+
+	setupComm(); //setup the speeds needed for UART
+
+	_EINT(); //enable all interrupts
 
 	serialcon_writeln("Enter a command:");
 
 	/* Main loop */
 	while (true) {
 		delay_ms(1);
-		check_for_input();
+
+			check_for_input();
+
 	}
 }
 
 #pragma vector=PORT1_VECTOR
 __interrupt void Port_1() {
 
-	if(mode==0)
-		mode=1;
-	else
-		mode=0;
+
 
 	P1IFG &= ~BIT3;
 	// disable button interrupt
