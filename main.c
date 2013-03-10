@@ -97,7 +97,19 @@ int getTempInHalfDegrees() {
     return scratchpad[0];
 }
 
+void flipExtLed(int port, int pin){
+	if(port==1)
+	{
+		P1DIR |= pin;
+		P1OUT ^= pin;
+	}
+	else if (port==2)
+	{
+		P2DIR |= pin;
+		P2OUT ^= pin;
+	}
 
+}
 
 void reportTemp(){
 	int doubledTemperature = getTempInHalfDegrees();
@@ -131,6 +143,8 @@ void check_for_input()
 				morseRumi();
 			} else if (strcmp(line, "t")==0) {
 				reportTemp();
+			} else if (strcmp(line, "extled")==0){
+				flipExtLed(1, BIT7);
 			} else {
 				serialcon_writeln("Huh?  Try 'help'");
 			}
